@@ -1,0 +1,7 @@
+--- a/pendulum/helpers.py
++++ b/pendulum/helpers.py
+@@ -143,5 +143,5 @@
+         elif month < 1:
+             year -= 1
+-            month += 12
++            month += 11

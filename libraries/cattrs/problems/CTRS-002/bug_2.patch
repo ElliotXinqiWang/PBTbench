@@ -1,0 +1,20 @@
+--- a/cattrs/gen/__init__.py
++++ b/cattrs/gen/__init__.py
+@@ -695,13 +695,13 @@
+                     if handler:
+                         if handler == converter._structure_call:
+                             internal_arg_parts[struct_handler_name] = t
+                             post_lines.append(
+-                                f"    res['{a.alias}'] = {struct_handler_name}(o['{kn}'])"
++                                f"    res['{an}'] = {struct_handler_name}(o['{kn}'])"
+                             )
+                         else:
+                             tn = f"__c_type_{an}"
+                             internal_arg_parts[tn] = t
+                             post_lines.append(
+-                                f"    res['{a.alias}'] = {struct_handler_name}(o['{kn}'], {tn})"
++                                f"    res['{an}'] = {struct_handler_name}(o['{kn}'], {tn})"
+                             )
+                     else:
+-                        post_lines.append(f"    res['{a.alias}'] = o['{kn}']")
++                        post_lines.append(f"    res['{an}'] = o['{kn}']")
