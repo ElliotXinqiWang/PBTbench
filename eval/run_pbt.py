@@ -1577,6 +1577,12 @@ def get_parser() -> argparse.ArgumentParser:
         help="Override the default prompt template (e.g. adversarial_pbt.j2).",
     )
     parser.add_argument(
+        "--server-image",
+        default=None,
+        help="Override the agent-server base image (e.g. a patched file_editor image). "
+             "Lib images are rebuilt FROM it (distinct tag hash).",
+    )
+    parser.add_argument(
         "--eval-timeout",
         type=int,
         default=1800,
@@ -1629,7 +1635,9 @@ def main() -> None:
     # Save run metadata
     metadata = {
         "run_type": "pbt_hypothesis",
-        "prompt_template": PROMPT_TEMPLATE,
+        # record the template actually rendered (--prompt-template overrides the default)
+        "prompt_template": args.prompt_template or PROMPT_TEMPLATE,
+        "reasoning_effort": getattr(llm, "reasoning_effort", None),
         "pbt_packages": PBT_PACKAGES,
         "llm_model": llm.model,
         "agent": "openhands",
@@ -1679,6 +1687,10 @@ def main() -> None:
             logger.info("Apptainer mode: using pre-built image %s", server_image)
             for _p in problems:
                 _p["_server_image"] = server_image
+        elif getattr(args, "server_image", None):
+            # Override with a pre-built (e.g. patched) agent-server image.
+            server_image = args.server_image
+            logger.info("Using override server image: %s", server_image)
         else:
             # Pre-build the Docker image once in the main thread to avoid race
             # conditions when multiple workers call _build_image_from_base() in parallel.
