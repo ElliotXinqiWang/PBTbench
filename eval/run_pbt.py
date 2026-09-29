@@ -72,18 +72,23 @@ _OWN_CONTAINERS: set = set()
 
 
 def _track_own_containers() -> None:
+    # Patch DockerWorkspace once per process; every harness module imported in this process (run_pbt,
+    # run_baseline, ...) registers its own set, and each set receives every container the process starts.
     from openhands.workspace.docker.workspace import DockerWorkspace as _DockerWorkspace
-    if getattr(_DockerWorkspace, "_pbt_tracking", False):
-        return
-    _orig_start = _DockerWorkspace._start_container
+    sets = getattr(_DockerWorkspace, "_pbt_track_sets", None)
+    if sets is None:
+        sets = []
+        _orig_start = _DockerWorkspace._start_container
 
-    def _start_and_track(self, image, context):
-        _orig_start(self, image, context)
-        if getattr(self, "_container_id", None):
-            _OWN_CONTAINERS.add(self._container_id)
+        def _start_and_track(self, image, context):
+            _orig_start(self, image, context)
+            if getattr(self, "_container_id", None):
+                for own in _DockerWorkspace._pbt_track_sets:
+                    own.add(self._container_id)
 
-    _DockerWorkspace._start_container = _start_and_track
-    _DockerWorkspace._pbt_tracking = True
+        _DockerWorkspace._start_container = _start_and_track
+        _DockerWorkspace._pbt_track_sets = sets
+    sets.append(_OWN_CONTAINERS)
 
 
 def _stop_agent_containers() -> None:
@@ -105,7 +110,9 @@ def _stop_agent_containers() -> None:
 
 _track_own_containers()
 atexit.register(_stop_agent_containers)
-signal.signal(signal.SIGTERM, lambda sig, frame: (_stop_agent_containers(), sys.exit(0)))
+# Exit immediately after stopping our containers: sys.exit() would only raise in the main thread, and the
+# ThreadPoolExecutor would keep starting new instances (and containers) while it waits for queued work.
+signal.signal(signal.SIGTERM, lambda sig, frame: (_stop_agent_containers(), os._exit(143)))
 
 # ---------------------------------------------------------------------------
 # Constants
